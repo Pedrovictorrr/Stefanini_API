@@ -25,9 +25,9 @@ class ProjetoTest extends TestCase
         Projeto::factory()->count(3)->create(['user_id' => auth()->id()]);
 
         $response = $this->getJson('/api/v1/projetos');
-
+    
         $response->assertStatus(200)
-            ->assertJsonCount(3);
+            ->assertJsonCount(3); // Espera um array de 3 projetos
     }
 
     public function test_create_projeto()
@@ -36,13 +36,20 @@ class ProjetoTest extends TestCase
             'nome' => 'Novo Projeto',
             'descricao' => 'Descrição do projeto',
             'data_inicio' => '2023-01-01',
+            'data_termino' => '2023-12-31',
             'status' => 'ativo'
         ];
 
         $response = $this->postJson('/api/v1/projetos', $data);
 
         $response->assertStatus(201)
-            ->assertJsonFragment($data);
+            ->assertJsonFragment([
+                'nome' => 'Novo Projeto',
+                'descricao' => 'Descrição do projeto',
+                'data_inicio' => '2023-01-01',
+                'data_termino' => '2023-12-31',
+                'status' => 'ativo'
+            ]);
     }
 
     public function test_update_projeto()
