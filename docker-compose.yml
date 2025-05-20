@@ -46,5 +46,16 @@ services:
     working_dir: /app
     command: composer install
 
+  flutter-web:
+    image: cirrusci/flutter:latest
+    container_name: flutter-web
+    working_dir: /app
+    volumes:
+      - ../StefaniniWEB:/app
+    command: bash -c "flutter pub get && flutter build web && cd build/web && python3 -m http.server 8080"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
 volumes:
   db_data:

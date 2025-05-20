@@ -26,6 +26,9 @@ RUN a2enmod rewrite headers
 # Set working directory
 WORKDIR /var/www
 
+# Fix git "dubious ownership" error
+RUN git config --global --add safe.directory /var/www
+
 # Copy only necessary files for composer install (optimize build cache)
 COPY composer.json composer.lock ./
 
@@ -60,7 +63,7 @@ RUN if [ -z "$(grep '^APP_KEY=' .env)" ] || [ "$(grep '^APP_KEY=' .env)" = "APP_
     fi
 
 # Run composer scripts after everything is set up
-RUN composer run-script post-install-cmd
+# RUN composer run-script post-install-cmd
 
 # Optimize Laravel cache
 RUN php artisan optimize 
