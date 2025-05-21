@@ -27,7 +27,7 @@ class SuportPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('suport')
-            ->path('suport')
+            ->path('')
             ->login()
             ->brandLogoHeight('3rem')
             ->brandLogo(asset('images/logo.png'))
