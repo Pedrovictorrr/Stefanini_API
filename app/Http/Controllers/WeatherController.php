@@ -24,46 +24,79 @@ class WeatherController extends Controller
 
         try {
             $city = $request->input('city', 'São Paulo');
-            $cacheKey = 'weather_' . strtolower($city);
+            $cacheKey = 'weather_onecall_' . strtolower($city);
 
-            // Cache for 1 hour
-            $weatherData = Cache::remember($cacheKey, 3600, function() use ($city) {
+            // Cache for 10 minutes (recommended by OpenWeather)
+            $weatherData = Cache::remember($cacheKey, 600, function() use ($city) {
+                $apiKey = "4351a63614c4ba37966a3faa03b72dd8";
+                // 1. Get lat/lon from city name using Geocoding API
                 try {
-                    $apiKey = "4351a63614c4ba37966a3faa03b72dd8";
-                    // Obter dados do tempo diretamente
-                    $weatherResponse = Http::get("https://api.openweathermap.org/data/2.5/weather", [
+                    $geoResponse = Http::get("https://api.openweathermap.org/geo/1.0/direct", [
                         'q' => $city,
-                        'appid' => $apiKey,
-                        'units' => 'metric',
-                        'lang' => 'pt_br'
+                        'limit' => 1,
+                        'appid' => $apiKey
                     ]);
                 } catch (Exception $e) {
                     return [
                         'error' => true,
-                        'message' => 'HTTP request to weather API failed',
+                        'message' => 'HTTP request to geocoding API failed',
                         'details' => $e->getMessage()
                     ];
                 }
 
-                if (isset($weatherResponse) && $weatherResponse->successful()) {
-                    $data = $weatherResponse->json();
-
+                if (!$geoResponse->successful() || empty($geoResponse[0])) {
                     return [
-                        'city' => $city,
-                        'temperature' => $data['main']['temp'] ?? null,
-                        'conditions' => $data['weather'][0]['description'] ?? null,
-                        'humidity' => $data['main']['humidity'] ?? null,
-                        'wind_speed' => $data['wind']['speed'] ?? null,
-                        'raw' => $data
+                        'error' => true,
+                        'message' => 'Failed to resolve city to coordinates',
+                        'status' => $geoResponse->status(),
+                        'body' => $geoResponse->body()
                     ];
                 }
 
-                // Falha na resposta da API
+                $geo = $geoResponse[0];
+                $lat = $geo['lat'];
+                $lon = $geo['lon'];
+
+                // 2. Get weather data from One Call API 3.0
+                try {
+                    $weatherResponse = Http::get("https://api.openweathermap.org/data/3.0/onecall", [
+                        'lat' => $lat,
+                        'lon' => $lon,
+                        'appid' => $apiKey,
+                        'units' => 'metric',
+                        'lang' => 'pt_br'
+                        // 'exclude' => 'minutely' // Optionally exclude parts
+                    ]);
+                } catch (Exception $e) {
+                    return [
+                        'error' => true,
+                        'message' => 'HTTP request to One Call API failed',
+                        'details' => $e->getMessage()
+                    ];
+                }
+
+                if (!$weatherResponse->successful()) {
+                    return [
+                        'error' => true,
+                        'message' => 'One Call API returned an unsuccessful response',
+                        'status' => $weatherResponse->status(),
+                        'body' => $weatherResponse->body()
+                    ];
+                }
+
+                $data = $weatherResponse->json();
+
+                // 3. Structure the response
                 return [
-                    'error' => true,
-                    'message' => 'Weather API returned an unsuccessful response',
-                    'status' => isset($weatherResponse) ? $weatherResponse->status() : null,
-                    'body' => isset($weatherResponse) ? $weatherResponse->body() : null
+                    'city' => $city,
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'timezone' => $data['timezone'] ?? null,
+                    'current' => $data['current'] ?? null,
+                    'hourly' => $data['hourly'] ?? null,
+                    'daily' => $data['daily'] ?? null,
+                    'alerts' => $data['alerts'] ?? [],
+                    'raw' => $data
                 ];
             });
         } catch (Exception $e) {
