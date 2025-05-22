@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Exception;
 use Illuminate\Validation\ValidationException;
+use App\Models\WeatherData;
 
 class WeatherController extends Controller
 {
@@ -42,6 +43,14 @@ class WeatherController extends Controller
                 }
 
                 $weatherData = $response->json();
+
+                // Salvar dados no banco de dados
+                WeatherData::create([
+                    'city' => $weatherData['location']['name'] ?? null,
+                    'data' => $weatherData,
+                    'temperature' => $weatherData['current']['temp_c'] ?? null,
+                    'conditions' => $weatherData['current']['condition']['text'] ?? null,
+                ]);
             } catch (Exception $e) {
                 return response()->json(['error' => 'Exception occurred', 'message' => $e->getMessage()], 500);
             }
