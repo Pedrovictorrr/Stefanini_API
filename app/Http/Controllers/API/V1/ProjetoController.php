@@ -87,7 +87,7 @@ class ProjetoController extends Controller
                 'descricao' => 'nullable|string',
                 'data_inicio' => 'sometimes|date',
                 'data_termino' => 'nullable|date|after:data_inicio',
-                'status' => 'nullable|string|in:ativo,inativo,concluido'
+                'status' => 'nullable|string'
             ]);
 
             $projeto->update($validated);
