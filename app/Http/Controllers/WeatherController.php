@@ -15,6 +15,7 @@ class WeatherController extends Controller
         try {
             $request->validate([
                 'city' => 'sometimes|string|max:255',
+                'exclude' => 'sometimes|string' // novo parâmetro opcional
             ]);
         } catch (ValidationException $e) {
             return response()->json(['message' => 'Invalid input', 'errors' => $e->errors()], 422);
@@ -24,10 +25,11 @@ class WeatherController extends Controller
 
         try {
             $city = $request->input('city', 'São Paulo');
-            $cacheKey = 'weather_onecall_' . strtolower($city);
+            $exclude = $request->input('exclude', null);
+            $cacheKey = 'weather_onecall_' . strtolower($city) . ($exclude ? '_ex_' . md5($exclude) : '');
 
             // Cache for 10 minutes (recommended by OpenWeather)
-            $weatherData = Cache::remember($cacheKey, 600, function() use ($city) {
+            $weatherData = Cache::remember($cacheKey, 600, function() use ($city, $exclude) {
                 $apiKey = "4351a63614c4ba37966a3faa03b72dd8";
                 // 1. Get lat/lon from city name using Geocoding API
                 try {
@@ -58,15 +60,19 @@ class WeatherController extends Controller
                 $lon = $geo['lon'];
 
                 // 2. Get weather data from One Call API 3.0
+                $params = [
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'appid' => $apiKey,
+                    'units' => 'metric',
+                    'lang' => 'pt_br'
+                ];
+                if ($exclude) {
+                    $params['exclude'] = $exclude;
+                }
+
                 try {
-                    $weatherResponse = Http::get("https://api.openweathermap.org/data/3.0/onecall", [
-                        'lat' => $lat,
-                        'lon' => $lon,
-                        'appid' => $apiKey,
-                        'units' => 'metric',
-                        'lang' => 'pt_br'
-                        // 'exclude' => 'minutely' // Optionally exclude parts
-                    ]);
+                    $weatherResponse = Http::get("https://api.openweathermap.org/data/3.0/onecall", $params);
                 } catch (Exception $e) {
                     return [
                         'error' => true,
